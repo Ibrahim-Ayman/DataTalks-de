@@ -4,9 +4,9 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/
 WORKDIR /code
 ENV PATH="/code/.venv/bin:$PATH"
 
-COPY pyproject.toml .python-version uv.lock ./
+COPY needed/pyproject.toml needed/.python-version needed/uv.lock ./
 RUN uv sync --locked
 
-COPY ingest_data_green.py .
+COPY Data-ingestion/ingest_data_green.py .
 
 ENTRYPOINT ["python", "ingest_data_green.py"]

@@ -1,0 +1,157 @@
+# Data Engineering Homework - Week 1
+
+## Question 1: Version of pip
+
+**Solution:**
+
+Run the following command:
+```bash
+docker run -it \
+    --rm \
+    --entrypoint=bash \
+    python:3.13-alpine
+```
+
+This will pull the image and open a bash terminal. Then type `pip --version` to see the pip version.
+
+---
+
+## Question 2: Docker Networking and Docker-Compose
+
+**Solution:**
+
+The question asks for the hostname and port where Postgres is running. 
+
+- **Port:** `5432` (this is the port inside the container)
+- **Hostname:** `postgres` (this is the service name in docker-compose)
+
+**Note:** The port mapping `5434:5432` means:
+- `5434` is the port on your host OS (not used for container-to-container communication)
+- `5432` is the port inside the container (this is what you use when connecting from another container)
+
+---
+
+## Before Question 3: Prepare Data
+
+I created a Docker image with a Python script that downloads the green taxi data for November 2025. 
+
+**Important:** The data format is **Parquet**, which requires a different ingestion method compared to CSV files. I modified the ingestion Python script to handle Parquet files properly.
+
+After building the image, I ran it using the postgres service created earlier, alongside other data files (yellow taxi data and zones).
+
+### Commands Used:
+
+1. Build the Docker image:
+```bash
+docker build -f Dockerfile.greenHW -t taxi_green:v005 .
+```
+
+2. Run the container to ingest data:
+```bash
+docker run -it --rm \
+    --network=homework_default \
+    taxi_green:v005 \
+    --pg-user=root \
+    --pg-pass=root \
+    --pg-host=postgres \
+    --pg-port=5432 \
+    --pg-db=data_talks_test \
+    --target-table=taxi_green_table
+```
+
+---
+
+## Question 3: Counting Short Trips
+
+**Solution:**
+
+Query to count trips with distance <= 1 mile between November 1st and December 1st, 2025:
+
+```sql
+SELECT COUNT(*)
+FROM public.taxi_green_table green 
+WHERE "lpep_pickup_datetime" BETWEEN '2025-11-01' AND '2025-12-01'
+    AND "trip_distance" <= 1;
+```
+
+---
+
+## Question 4: Longest Trip for Each Day
+
+**Solution:**
+
+Query to find the longest trip distance for each day (excluding trips >= 100 miles):
+
+```sql
+SELECT 
+    DATE_PART('DAY', "lpep_pickup_datetime") AS day,
+    MAX("trip_distance") AS longest_trip_distance
+FROM public.taxi_green_table green
+WHERE "trip_distance" < 100
+GROUP BY DATE_PART('DAY', "lpep_pickup_datetime")
+ORDER BY longest_trip_distance DESC;
+```
+
+---
+
+## Question 5: Biggest Pickup Zone
+
+**Solution:**
+
+Query to find the pickup zone with the highest total amount on day 18:
+
+```sql
+SELECT 
+    SUM("total_amount") AS total_amount,
+    zone."Zone"
+FROM public.taxi_green_table green
+INNER JOIN public.taxi_zones_table zone
+    ON green."PULocationID" = zone."LocationID"
+WHERE DATE_PART('DAY', "lpep_pickup_datetime") = 18
+GROUP BY zone."Zone"
+ORDER BY total_amount DESC;
+```
+
+---
+
+## Question 6: Largest Tip
+
+**Solution:**
+
+Query to find the drop-off zone with the largest tip amount for trips starting from 'East Harlem North':
+
+```sql
+SELECT 
+    zone_dropoff."Zone",
+    green."tip_amount"
+FROM public.taxi_green_table green
+INNER JOIN public.taxi_zones_table zone_pickup
+    ON green."PULocationID" = zone_pickup."LocationID"
+INNER JOIN public.taxi_zones_table zone_dropoff
+    ON green."DOLocationID" = zone_dropoff."LocationID"
+WHERE zone_pickup."Zone" = 'East Harlem North'
+ORDER BY green."tip_amount" DESC;
+```
+
+---
+
+## Question 7: Terraform Workflow
+
+**Solution:**
+
+The Terraform workflow consists of three main commands:
+
+1. **Initialize Terraform:**
+```bash
+terraform init
+```
+
+2. **Apply infrastructure changes:**
+```bash
+terraform apply -auto-approve
+```
+
+3. **Destroy infrastructure:**
+```bash
+terraform destroy
+```

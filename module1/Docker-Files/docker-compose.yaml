@@ -1,0 +1,27 @@
+services: 
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER : "root"
+      POSTGRES_PASSWORD : "root"
+      POSTGRES_DB : "data_talks_test"
+    volumes:
+      - ny_taxi_data:/var/lib/postgresql
+    ports:
+      - "6060:5432"
+
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+        PGADMIN_DEFAULT_EMAIL: "admin@admin.com"
+        PGADMIN_DEFAULT_PASSWORD: "admin"
+    volumes:
+        - pgadmin_data:/var/lib/pgadmin
+    ports:
+        - "8888:80"
+
+
+
+volumes:
+  ny_taxi_data:
+  pgadmin_data:

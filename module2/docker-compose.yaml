@@ -1,0 +1,140 @@
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+  # airflow_data:
+  #   driver: local
+
+networks:
+  airflow_postgres_network:
+    driver: bridge
+services:
+  postgres: 
+    image: postgres:17
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: datatalks_db
+    ports:
+      - 5432:5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    mem_limit: 6g
+    cpus: "4.0"
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: >
+      postgres -c listen_addresses='*' 
+                    -c shared_buffers=1GB
+                    -c effective_cache_size=5GB
+                    -c work_mem=64MB
+                    -c maintenance_work_mem=512MB
+                    -c wal_compression=on
+                    -c max_wal_size=20GB
+                    -c min_wal_size=2GB
+                    -c checkpoint_timeout=30min
+                    -c checkpoint_completion_target=0.9
+                    -c synchronous_commit=off
+    networks:
+      - airflow_postgres_network
+  
+  airflow-init:
+    image: apache/airflow:2.7.1
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: /bin/bash
+    command: -c 'airflow db init && airflow users 
+                create 
+                      --username admin 
+                      --password admin 
+                      --firstname admin 
+                      --lastname admin 
+                      --role Admin 
+                      --email admin@admin.com 
+                && airflow connections add 'postgres_conn' 
+                      --conn-type postgres 
+                      --conn-host postgres 
+                      --conn-port 5432 
+                      --conn-login postgres 
+                      --conn-password postgres 
+                      --conn-schema postgres'
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:postgres@postgres:5432/datatalks_db
+    networks:
+      - airflow_postgres_network
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins 
+      - ./airflow/data:/opt/airflow/data
+      - E:/engenrring Hema/Data Engineeing/courses/dataTalksCourse/week4:/host_data
+  
+  airflow_scheduler:
+    image: apache/airflow:2.7.1
+    container_name: airflow_scheduler
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor 
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:postgres@postgres:5432/datatalks_db
+      - AIRFLOW__LOAD_EXAMPLES=False
+    command: scheduler
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins 
+      - ./airflow/data:/opt/airflow/data
+      - E:/engenrring Hema/Data Engineeing/courses/dataTalksCourse/week4:/host_data
+    mem_limit: 6g
+    cpus: "2.0"
+    networks:
+      - airflow_postgres_network
+
+  airflow-webserver:
+    image: apache/airflow:2.7.1
+    container_name: airflow_webserver
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow_scheduler:
+        condition: service_started  
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor 
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:postgres@postgres:5432/datatalks_db
+      - AIRFLOW__LOAD_EXAMPLES=False
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs  
+      - ./airflow/plugins:/opt/airflow/plugins
+      - ./airflow/data:/opt/airflow/data
+      - E:/engenrring Hema/Data Engineeing/courses/dataTalksCourse/week4:/host_data
+    ports:
+      - 3333:8080
+    networks:
+      - airflow_postgres_network
+    command: webserver
+
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "admin@admin.com"
+      PGADMIN_DEFAULT_PASSWORD: "admin"
+    ports:
+      - 3000:80
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - airflow_postgres_network
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin

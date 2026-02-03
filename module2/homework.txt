@@ -1,0 +1,81 @@
+QUESTION 1
+What is the uncompressed file size for the Yellow Taxi data for the year 2020 and month 12?
+
+SOLUTION:
+I created a processed_files table to streamline processing and avoid reprocessing files. The following query was used to retrieve the file size:
+
+SELECT file_size
+FROM datatalks.processed_files
+WHERE filename = 'yellow_2020_12.csv'
+
+Table structure:
+  filename               text PRIMARY KEY,
+  taxi_type              text,
+  file_size              bigint,
+  year                   integer,
+  month                  integer,
+  processed_timestamp    timestamp DEFAULT CURRENT_TIMESTAMP,
+  status                 text
+
+Query output:
+134.5 MiB
+
+
+QUESTION 2
+What is the rendered value of the variable file when the inputs taxi is set to green, year is set to 2020, and month is set to 04 during execution?
+
+SOLUTION:
+The output follows this format: {{outputs.extract.outputFiles[inputs.taxi ~ '_tripdata_' ~ inputs.year ~ '-' ~ inputs.month ~ '.csv']}}
+
+Rendered output:
+green_tripdata_2020-04.csv
+
+QUESTION 3
+How many rows are there for the Yellow Taxi data for all CSV files in the year 2020?
+
+SOLUTION:
+The following query was used to count the rows:
+
+SELECT COUNT(*)
+FROM datatalks.yellow y
+INNER JOIN datatalks.processed_files pf
+ON REPLACE(pf.filename, '.csv', '') = REPLACE(y.filename, '_data', '')
+WHERE pf.year = 2020 AND pf.taxi_type = 'yellow'
+
+Query output:
+24,648,499
+
+QUESTION 4
+How many rows are there for the Green Taxi data for all CSV files in the year 2020?
+
+SOLUTION:
+The following query was used to count the rows (same as Question 3, but with green taxi type):
+
+SELECT COUNT(*)
+FROM datatalks.green g
+INNER JOIN datatalks.processed_files pf
+ON REPLACE(pf.filename, '.csv', '') = REPLACE(g.filename, '_data', '')
+WHERE pf.year = 2020 AND pf.taxi_type = 'green'
+
+Query output:
+1,734,051
+
+QUESTION 5
+How many rows are there for the Yellow Taxi data for the March 2021 CSV file?
+
+SOLUTION:
+The following query was used to count the rows:
+
+SELECT COUNT(*)
+FROM datatalks.yellow
+WHERE filename = 'yellow_2021_3_data'
+
+Query output:
+1,925,152
+
+QUESTION 6
+How would you configure the timezone to New York in a Schedule trigger?
+
+SOLUTION:
+Add a timezone property set to America/New_York in the Schedule trigger configuration.
+
